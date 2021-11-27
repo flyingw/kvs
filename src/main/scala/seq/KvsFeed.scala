@@ -18,7 +18,8 @@ object KvsFeed {
     def get  [Fid, Key, A](fid: Fid, key: Key    )(implicit i: AnyFeed[Fid, Key, A]):     IO[Err, Option[A]]
     def head [Fid, Key, A](fid: Fid              )(implicit i: AnyFeed[Fid, Key, A]):     IO[Err, Option[(Key, A)]]
 
-    def add[Fid, Key, A](fid: Fid, a: A)(implicit i: Increment[Fid, Key, A]): IO[Err, Key]
+    def add[Fid, Key, A](fid: Fid, a: A             )(implicit i: Increment[Fid, Key, A]): IO[Err, Key]
+    def update[Fid, Key, A](fid: Fid, key: Key, a: A)(implicit i: Increment[Fid, Key, A]): IO[Err, Unit]
 
     def put    [Fid, Key, A](fid: Fid, key: Key, a: A     )(implicit i: Manual[Fid, Key, A]): IO[Err, Unit]
     def putBulk[Fid, Key, A](fid: Fid, a: Vector[(Key, A)])(implicit i: Manual[Fid, Key, A]): IO[Err, Unit]
@@ -116,6 +117,20 @@ object KvsFeed {
                       }.mapError(ShardErr(_))
             key    <- i.key(elKey)
           } yield key
+
+        def update[Fid, Key, A](fid: Fid, key: Key, a: A)(implicit i: Increment[Fid, Key, A]): IO[Err, Unit] =
+          for {
+            fdKey  <- i.fdKey(fid)
+            elKey  <- i.elKey(key)
+            bytes  <- i.bytes(a)
+            _      <- ZIO.effectAsyncM { (callback: IO[Err, Unit] => Unit) =>
+                        val receiver = as.actorOf(Receiver.props{
+                          case Right(a) => callback(IO.succeed(a))
+                          case Left (e) => callback(IO.fail(KvsErr(e)))
+                        })
+                        sh.send(hex(fdKey.bytes), Shard.Put(fdKey, elKey, bytes), receiver)
+                      }.mapError(ShardErr(_))
+          } yield ()
 
         def put[Fid, Key, A](fid: Fid, key: Key, a: A)(implicit i: Manual[Fid, Key, A]): IO[Err, Unit] =
           for {
