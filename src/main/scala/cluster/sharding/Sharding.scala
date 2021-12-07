@@ -51,9 +51,9 @@ object Sharding {
                             extractEntityId = {
                               case MessageEnvelope(entityId, payload) =>
                                 payload match {
-                                  case MessageEnvelope.PoisonPillPayload    => (entityId, PoisonPill)
-                                  case MessageEnvelope.PassivatePayload     => (entityId, Passivate(PoisonPill))
-                                  case p: MessageEnvelope.MessagePayload[_] => (entityId, p)
+                                  case MessageEnvelope.PoisonPillPayload    => ("0", PoisonPill)
+                                  case MessageEnvelope.PassivatePayload     => ("0", Passivate(PoisonPill))
+                                  case p: MessageEnvelope.MessagePayload[_] => ("0", p)
                                 }
                             },
                             extractShardId = {

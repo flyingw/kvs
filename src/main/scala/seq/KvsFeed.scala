@@ -33,7 +33,7 @@ object KvsFeed {
     for {
       dba <- ZIO.service[Dba.Service]
       as  <- ZIO.service[ActorSystem.Service]
-      sh  <- Sharding.start("kvs_list_write_shard", Shard.onMessage(dba))
+      sh  <- Sharding.start("kvs_list_write_shard", Shard.onMessage(dba), numberOfShards = 5)
     } yield {
       new Service {
         private implicit val dba1 = dba
